@@ -1,4 +1,20 @@
-Deferred Tutorial
+#+TITLE:     Deferred Tutorial
+#+AUTHOR:    Ben Eills
+#+EMAIL:     ziarkaen@socrates.primroseend
+#+DATE:      2012-09-03 Mon
+#+DESCRIPTION:
+#+KEYWORDS:
+#+LANGUAGE:  en
+#+OPTIONS:   H:3 num:nil toc:t \n:nil @:t ::t |:t ^:nil -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:t pri:nil tags:not-in-toc
+#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+LINK_UP:   
+#+LINK_HOME: 
+#+XSLT:
+
+* A Mad Hatter
 
 Imagine that a madman (we'll call him MadHatter) walks up to you and thrusts into your hand a FireCracker.  The FireCracker's internal Fuse is burning and will explode the firework in the next few seconds.
 
@@ -39,14 +55,16 @@ def light_fuse(self):
 #+END_SRC
 
 Do *not* do this!  Why?  There are two obvious issues:
-* While burning the FireCracker()cannot be handed to anyone else.  The MadHatter()'s dark designs will never be realized because directly after lighting the fuse the processor becomes completely taken up with sleeping.  The path of execution effectively sits at the time.sleep() statement for several seconds, after which it moves to th next line, exploding in the lighter's own hands.  There is simply no way to do anything between the two consecutive lines of code.
-* Secondly, if you have more than one FireCracker(), or indeed anything else in your model, it will all unhelpfully freeze for several seconds.  Only one thing can possibly be happening at a particluar time.  This is the fundamental limitation of traditional syncronous programming.
++ While burning the FireCracker()cannot be handed to anyone else.  The MadHatter()'s dark designs will never be realized because directly after lighting the fuse the processor becomes completely taken up with sleeping.  The path of execution effectively sits at the time.sleep() statement for several seconds, after which it moves to th next line, exploding in the lighter's own hands.  There is simply no way to do anything between the two consecutive lines of code.
++ Secondly, if you have more than one FireCracker(), or indeed anything else in your model, it will all unhelpfully freeze for several seconds.  Only one thing can possibly be happening at a particluar time.  This is the fundamental limitation of traditional syncronous programming.
 
 
 We shall now find a way around this by writing Fate() cna async code to use it.
 
 
 In general, asyncronous programming could be summarized by replacing any blocking operation (e.g. sleeping, waiting for data on sockets, waiting or external command to return) with special event-handling commands.  By writing Fate, we will see that the blocking, clunky operations are in fact moved back behind the scenes into the event framework, which itnelligently combines them to give the illusion of simultaenous happenings.  They are merely being 'switched between'.  (Incidentally, this is similar to the way that modern operating systems allow you to run multiple applications at once by raidly switching between them behind-the-scenes).
+
+* Fate
 
 On to Fate.  We have to provide a way for the developer working on the FireCracker code to 'set' events.  The simplest method of doing this is perhaps timer-based events.  Lets make a Fuse class that represents a timed event.  Just follow along, you'll see precisely how it fits together with everything else in a bit.
 
@@ -62,8 +80,9 @@ class Fuse(object):
 So, this is simple.  We get a fuse, set the burning time and then we can check in the future whether or not it is fully burned.  It is a trifle whether to use '<' or '<=' - it is incredibly unlikely that this will make any difference in your Python implementation, due to the high precision of the Standard Library's time() call.  I have opted for the nicer-looking version, avoiding the perhaps philisophical issue of subdivision of time.
 
 Now, the way that this will be incorporated into our code is as follows:
-* We will create Fate and add to it a get_fuse() method.  This will take a single argument of the (floating point) number of seconds representing burning time.  It will add this to the current time, giving the absolute time at which the fuse will be fully burned, creates a Fuse instance and sets the time on it.  It saves this to internal instance memeory and returns it.
-* We will add a light_fuse() method to FireCracker.  This will get a Fuse using Fate.get_fuse() and tell it what to do when the fuse is fully burned.  It will do this by simply calling its set_handler() method with self.explode.  We are telling Fate how to handle the fuse being completely burned.
+
++ We will create Fate and add to it a get_fuse() method.  This will take a single argument of the (floating point) number of seconds representing burning time.  It will add this to the current time, giving the absolute time at which the fuse will be fully burned, creates a Fuse instance and sets the time on it.  It saves this to internal instance memeory and returns it.
++ We will add a light_fuse() method to FireCracker.  This will get a Fuse using Fate.get_fuse() and tell it what to do when the fuse is fully burned.  It will do this by simply calling its set_handler() method with self.explode.  We are telling Fate how to handle the fuse being completely burned.
 
 
 
@@ -112,21 +131,21 @@ class Fuse(object):
 #+END_SRC
 
 Whew!  Now the explanation:
-* check_fuses() goes through every fuse in the instance memory (which should be every fuse if the other developers have behaved and used get_fuse() rather than instantiating Fuse for themselves).  For each fuse it checks is the fuse has_handler() and is_burned().  If so, it removes the fuse from memory and calls the handler.  If the fuse is still burning, or no handler has been set, it simply is left in the list to be tested again.
-* run() is the 3-line meat of Fate and our whole event management system.  Every 0.2 seconds it runs check_fuses() until it detects a system shutdown event.
-* The set_handler function accepts a function.  In case you're not familiar with passing around functions as arguments, you simply supply the function name; this is the equivalent in C-derived languages of a function pointer, and, internally to Python, is represented as such.  This function is what you want to be called when the fuse is fully burned.
-* has _ handler() and call _ handler() are straightforward.
-* shutdown() tells Fate that we wish to stop handling events, causing run() to return and our program to terminate.
++ check_fuses() goes through every fuse in the instance memory (which should be every fuse if the other developers have behaved and used get_fuse() rather than instantiating Fuse for themselves).  For each fuse it checks is the fuse has_handler() and is_burned().  If so, it removes the fuse from memory and calls the handler.  If the fuse is still burning, or no handler has been set, it simply is left in the list to be tested again.
++ run() is the 3-line meat of Fate and our whole event management system.  Every 0.2 seconds it runs check_fuses() until it detects a system shutdown event.
++ The set_handler function accepts a function.  In case you're not familiar with passing around functions as arguments, you simply supply the function name; this is the equivalent in C-derived languages of a function pointer, and, internally to Python, is represented as such.  This function is what you want to be called when the fuse is fully burned.
++ has _ handler() and call _ handler() are straightforward.
++ shutdown() tells Fate that we wish to stop handling events, causing run() to return and our program to terminate.
 
 
 The pattern of writing a program using Fate is easy:
-* You do whatever initialization you want
-* You set up at least one initial Fuse with handlers
-* You call Fate's run()
-* The intitial handlers can themselves set up subsequent handlers
-* All actual work is done in these handler functions
-* Eventually, some handler calls Fate's shutdown() method
-* This causes run() to return and, after any of our own shutdown code, the program exits.
++ You do whatever initialization you want
++ You set up at least one initial Fuse with handlers
++ You call Fate's run()
++ The intitial handlers can themselves set up subsequent handlers
++ All actual work is done in these handler functions
++ Eventually, some handler calls Fate's shutdown() method
++ This causes run() to return and, after any of our own shutdown code, the program exits.
 
 Now, we'll fill in the bits of the FireCracker scenario to make use of Fate.  This will be a good example of how to use Fate for other applications, and, more generally, is illustrative of a standard asyncronous design pattern.  Remember that we're replacing the bad, syncronous version one of our light_fuse() method with a better Fate-ful one.
 
@@ -181,14 +200,14 @@ fate.run()
 
 A fully working copy is available here TODO.
 
-TODO heading
+* Taking Fate to its limits
 
 Now, our Fate system functions well at the limited tasks set out for it.
 It will not do any of the following things:
-* Allow a Fuse to be lit which is burned only after receiving a particular packet over the network
-* Allow multiple users to handle any one Fuse (the last to call set_handler() is always the sole "owner")
-* Utilise more complicated mechanisms to check for Fuses being compeletly burned.
-** e.g. using the low-level select() call to avoid processor-intensive polling every 0.2 seconds
++ Allow a Fuse to be lit which is burned only after receiving a particular packet over the network
++ Allow multiple users to handle any one Fuse (the last to call set_handler() is always the sole "owner")
++ Utilise more complicated mechanisms to check for Fuses being compeletly burned.
+ + e.g. using the low-level select() call to avoid processor-intensive polling every 0.2 seconds
 
 Let's see a quick second example that takes Fate to the limits of its functionality.
 
@@ -233,4 +252,47 @@ last.ignite()
 fate.run()
 #+END_SRC
 
-Here we have represented a chain of fuses by putting in the "user" code a chaining mechanism: the handler for one Fuse() i.e. ignite() itself creates another fuse.  
+Here we have represented a chain of fuses by putting in the "user" code a chaining mechanism: the handler for one Fuse() i.e. ignite() itself creates another fuse.
+
+Try following through the "logical flow" of execution throught the program.  It can be more difficult to follow this than standard, syncronous code, but we gain an advantage when working on any non-trivial proram that must accomplish mutliple tasks in some sort of concurrency.
+
+Now that we've written an event handler and two examples together, its time to introduce Twisted.  It is similar to Fate, but much more extensible. Twisted also contains many utility modules for doing things like HTTP downloading and executing external commands.
+
+* Twisted
+
+To get started with Twisted, remmber thses two approximations:
++ "Twisted Reactor" is approximately "Fate", and
++ "Deferred" is approximately "Fuse"
+
+Here is a simple Twisted proram, adapted from the [[http://twistedmatrix.com/documents/current/core/howto/defer.html#auto1][Twisted Docs]]:
+
+#+BEGIN_SRC python
+from twisted.internet import reactor, defer
+
+def slow_mutliply(x, y):
+    """
+    This function multiplies two numbers very slowly (for a computer).
+    It takes 3 seconds.
+    It returns a Deferred instantly which fires with the result once we've determined it.
+    """
+    d = defer.Deferred()
+    reactor.callLater(3, d.callback, x * y)
+    return d
+
+def printData(fired_value):
+    """
+    Is called by Twisted when the Deferred given by slow_multiply finally fires.  We pretty print the result it fires with.
+    """
+    print "... result is {0}!".format(fired_value)
+
+print "Determining result of 5 * 7..."
+d = slow_multiply(5, 7)
+d.addCallback(print_multiplication_result)
+
+# We stop Twisted after 4 seconds, long enough for our code to finish.
+# This is pretty similar to Fate's "shutdown" method.
+reactor.callLater(4, reactor.stop)
+reactor.run()
+#+END_SRC
+
+
