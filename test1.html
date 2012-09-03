@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+               "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>Deferred Tutorial</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+<meta name="title" content="Deferred Tutorial"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="generated" content="2012-08-23 23:37:40 BST"/>
+<meta name="author" content="Ben Eills"/>
+<meta name="description" content=""/>
+<meta name="keywords" content=""/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  html { font-family: Times, serif; font-size: 12pt; }
+  .title  { text-align: center; }
+  .todo   { color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #add8e6; font-weight:normal }
+  .target { }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  {margin-left:auto; margin-right:0px;  text-align:right;}
+  .left   {margin-left:0px;  margin-right:auto; text-align:left;}
+  .center {margin-left:auto; margin-right:auto; text-align:center;}
+  p.verse { margin-left: 3% }
+  pre {
+	border: 1pt solid #AEBDCC;
+	background-color: #F3F5F7;
+	padding: 5pt;
+	font-family: courier, monospace;
+        font-size: 90%;
+        overflow:auto;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top;  }
+  th.right  { text-align:center;  }
+  th.left   { text-align:center;   }
+  th.center { text-align:center; }
+  td.right  { text-align:right;  }
+  td.left   { text-align:left;   }
+  td.center { text-align:center; }
+  dt { font-weight: bold; }
+  div.figure { padding: 0.5em; }
+  div.figure p { text-align: center; }
+  div.inlinetask {
+    padding:10px;
+    border:2px solid gray;
+    margin:10px;
+    background: #ffffcc;
+  }
+  textarea { overflow-x: auto; }
+  .linenr { font-size:smaller }
+  .code-highlighted {background-color:#ffff00;}
+  .org-info-js_info-navigation { border-style:none; }
+  #org-info-js_console-label { font-size:10px; font-weight:bold;
+                               white-space:nowrap; }
+  .org-info-js_search-highlight {background-color:#ffff00; color:#000000;
+                                 font-weight:bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+
+</head>
+<body>
+
+<div id="preamble">
+
+</div>
+
+<div id="content">
+<h1 class="title">Deferred Tutorial</h1>
+
+<p>Imagine that a madman (we'll call him MadHatter) walks up to you and thrusts into your hand a FireCracker.  The FireCracker's internal Fuse is burning and will explode the firework in the next few seconds.
+</p>
+<p>
+We will model this scenario using Asyncronous Python code.  This sort  of task is exactly what Twisted excels at, and we will write a Twisted implmentation of the scenario at the end of the article.  Before that, however, we will examine what components the task makes necessary in a general async event manager.  To this end we shall create our own event manager called Fate (don't worry, this will be very bare bones to fit in a few lines of code, yet suitable for the task we have set it).  You may have noticed that the pieces of the system I have described so far have names fitting into a real-life analogy.  This is a device to aid memory and understanding; I will make clear as we consider each part whether it is specific to our scenario, or applicable to a more general class of circumstances.  Hopefully the choice of naming will be helpful - Twisted also has interesting names, but ones which strangely have very little to do with the function of their bearers (see Conch, Manhole and Jelly). 
+</p>
+<p>
+Enter the actors:
+</p>
+
+
+
+<pre class="example">class FireCracker(object):
+    def __init__(self, owner):
+        self.owner = owner
+    def hand_to(self, new_owner):
+        self.owner = new_owner
+    def explode(self):
+        print "BOOM! Firecracker exploded in the unlucky hands " \
+            "of {0}".format(self.owner)
+
+class MadHatter(object):
+    pass
+
+class BenEills(object):
+    pass
+</pre>
+
+
+<p>
+We've got this far using only the 'standard' everyday sort of Python.  No async magic.
+</p>
+<p>
+Now, why is an event manager useful?  Why not simply continue in this vein?
+</p>
+<p>
+Well, we want to be able to simulate th burning fuse.  Let's add a light<sub>fuse</sub>() method to FireCracker.  In naïve, syncronous Python we could do something like this:
+</p>
+
+
+
+<pre class="example">
+def light_fuse(self):
+    burning_time = random.choice([0.5, 1.0, 1.5, 2.0])
+    time.sleep(burning_time)
+    self.explode()
+
+</pre>
+
+
+<p>
+Do <b>not</b> do this!  Why?  There are two obvious issues:
+</p>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1 While burning the FireCracker()cannot be handed to anyone else.  The MadHatter()'s dark designs will never be realized because directly after lighting the fuse the processor becomes completely taken up with sleeping.  The path of execution effectively sits at the time.sleep() statement for several seconds, after which it moves to th next line, exploding in the lighter's own hands.  There is simply no way to do anything between the two consecutive lines of code.</a></li>
+<li><a href="#sec-2">2 Secondly, if you have more than one FireCracker(), or indeed anything else in your model, it will all unhelpfully freeze for several seconds.  Only one thing can possibly be happening at a particluar time.  This is the fundamental limitation of traditional syncronous programming.</a></li>
+<li><a href="#sec-3">3 We will create Fate and add to it a get<sub>fuse</sub>() method.  This will take a single argument of the (floating point) number of seconds representing burning time.  It will add this to the current time, giving the absolute time at which the fuse will be fully burned, creates a Fuse instance and sets the time on it.  It saves this to internal instance memeory and returns it.</a></li>
+<li><a href="#sec-4">4 We will add a light<sub>fuse</sub>() method to FireCracker.  This will get a Fuse using Fate.get<sub>fuse</sub>() and tell it what to do when the fuse is fully burned.  It will do this by simply calling its set<sub>handler</sub>() method with self.explode.  We are telling Fate how to handle the fuse being completely burned.</a></li>
+<li><a href="#sec-5">5 check<sub>fuses</sub>() goes through every fuse in the instance memory (which should be every fuse if the other developers have behaved and used get<sub>fuse</sub>() rather than instantiating Fuse for themselves).  For each fuse it checks is the fuse has<sub>handler</sub>() and is<sub>burned</sub>().  If so, it removes the fuse from memory and calls the handler.  If the fuse is still burning, or no handler has been set, it simply is left in the list to be tested again.</a></li>
+<li><a href="#sec-6">6 run() is the 3-line meat of Fate and our whole event management system.  Every 0.2 seconds it runs check<sub>fuses</sub>() until it detects a system shutdown event.</a></li>
+<li><a href="#sec-7">7 The set<sub>handler</sub> function accepts a function.  In case you're not familiar with passing around functions as arguments, you simply supply the function name; this is the equivalent in C-derived languages of a function pointer, and, internally to Python, is represented as such.  This function is what you want to be called when the fuse is fully burned.</a></li>
+<li><a href="#sec-8">8 methods andler() and andler() are straightforward.</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> While burning the FireCracker()cannot be handed to anyone else.  The MadHatter()'s dark designs will never be realized because directly after lighting the fuse the processor becomes completely taken up with sleeping.  The path of execution effectively sits at the time.sleep() statement for several seconds, after which it moves to th next line, exploding in the lighter's own hands.  There is simply no way to do anything between the two consecutive lines of code.</h2>
+<div class="outline-text-2" id="text-1">
+
+</div>
+
+</div>
+
+<div id="outline-container-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> Secondly, if you have more than one FireCracker(), or indeed anything else in your model, it will all unhelpfully freeze for several seconds.  Only one thing can possibly be happening at a particluar time.  This is the fundamental limitation of traditional syncronous programming.</h2>
+<div class="outline-text-2" id="text-2">
+
+
+
+<p>
+We shall now find a way around this by writing Fate() cna async code to use it.
+</p>
+
+<p>
+In general, asyncronous programming could be summarized by replacing any blocking operation (e.g. sleeping, waiting for data on sockets, waiting or external command to return) with special event-handling commands.  By writing Fate, we will see that the blocking, clunky operations are in fact moved back behind the scenes into the event framework, which itnelligently combines them to give the illusion of simultaenous happenings.  They are merely being 'switched between'.  (Incidentally, this is similar to the way that modern operating systems allow you to run multiple applications at once by raidly switching between them behind-the-scenes).
+</p>
+<p>
+On to Fate.  We have to provide a way for the developer working on the FireCracker code to 'set' events.  The simplest method of doing this is perhaps timer-based events.  Lets make a Fuse class that represents a timed event.  Just follow along, you'll see precisely how it fits together with everything else in a bit.
+</p>
+
+
+
+<pre class="example">class Fuse(object):
+    def set_time(self, time):
+        self.time = time
+    def is_burned(self):
+        return self.time &lt; time.time()
+</pre>
+
+
+
+<p>
+So, this is simple.  We get a fuse, set the burning time and then we can check in the future whether or not it is fully burned.  It is a trifle whether to use '&lt;' or '&lt;=' - it is incredibly unlikely that this will make any difference in your Python implementation, due to the high precision of the Standard Library's time() call.  I have opted for the nicer-looking version, avoiding the perhaps philisophical issue of subdivision of time.
+</p>
+<p>
+Now, the way that this will be incorporated into our code is as follows:
+</p></div>
+
+</div>
+
+<div id="outline-container-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> We will create Fate and add to it a get<sub>fuse</sub>() method.  This will take a single argument of the (floating point) number of seconds representing burning time.  It will add this to the current time, giving the absolute time at which the fuse will be fully burned, creates a Fuse instance and sets the time on it.  It saves this to internal instance memeory and returns it.</h2>
+<div class="outline-text-2" id="text-3">
+
+</div>
+
+</div>
+
+<div id="outline-container-4" class="outline-2">
+<h2 id="sec-4"><span class="section-number-2">4</span> We will add a light<sub>fuse</sub>() method to FireCracker.  This will get a Fuse using Fate.get<sub>fuse</sub>() and tell it what to do when the fuse is fully burned.  It will do this by simply calling its set<sub>handler</sub>() method with self.explode.  We are telling Fate how to handle the fuse being completely burned.</h2>
+<div class="outline-text-2" id="text-4">
+
+
+
+
+<p>
+But wait.  Fuse doesn't have a set<sub>handler</sub>() method.  We're going to fix that presently, it was simply more convienient to present the material in this logical order.
+</p>
+<p>
+The following is the whole of Fate, including the slightly expanded Fuse class.  It will be explained afterwards.  Try to glean the rough functionality from the source.
+</p>
+
+
+
+<pre class="example">class Fate(object):
+    def __init__(self):
+        self._shutdown = False
+        self.fuses = []
+
+    def get_fuse(self, seconds):
+        f = Fuse()
+        f.set_time(time.time() + seconds)
+        self.fuses.append(f)
+        return f
+
+    def check_fuses(self):
+        for fuse in self.fuses:
+            if fuse.has_handler() and fuse.is_burned():
+                self.fuses.remove(fuse)
+                fuse.call_handler()
+
+    def run(self):
+        while not self._shutdown:
+            self.check_fuses()
+            time.sleep(0.2)
+
+    def shutdown(self):
+        self._shutdown = True
+
+
+class Fuse(object):
+    def set_time(self, time):
+        self.time = time
+    def is_burned(self):
+        return self.time &lt; time.time()
+    def set_handler(self, handler):
+        self.handler = handler
+    def has_handler(self):
+        return hasattr(self, 'handler')
+    def call_handler(self):
+        self.handler()
+</pre>
+
+
+<p>
+Whew!  Now the explanation:
+</p></div>
+
+</div>
+
+<div id="outline-container-5" class="outline-2">
+<h2 id="sec-5"><span class="section-number-2">5</span> check<sub>fuses</sub>() goes through every fuse in the instance memory (which should be every fuse if the other developers have behaved and used get<sub>fuse</sub>() rather than instantiating Fuse for themselves).  For each fuse it checks is the fuse has<sub>handler</sub>() and is<sub>burned</sub>().  If so, it removes the fuse from memory and calls the handler.  If the fuse is still burning, or no handler has been set, it simply is left in the list to be tested again.</h2>
+<div class="outline-text-2" id="text-5">
+
+</div>
+
+</div>
+
+<div id="outline-container-6" class="outline-2">
+<h2 id="sec-6"><span class="section-number-2">6</span> run() is the 3-line meat of Fate and our whole event management system.  Every 0.2 seconds it runs check<sub>fuses</sub>() until it detects a system shutdown event.</h2>
+<div class="outline-text-2" id="text-6">
+
+</div>
+
+</div>
+
+<div id="outline-container-7" class="outline-2">
+<h2 id="sec-7"><span class="section-number-2">7</span> The set<sub>handler</sub> function accepts a function.  In case you're not familiar with passing around functions as arguments, you simply supply the function name; this is the equivalent in C-derived languages of a function pointer, and, internally to Python, is represented as such.  This function is what you want to be called when the fuse is fully burned.</h2>
+<div class="outline-text-2" id="text-7">
+
+</div>
+
+</div>
+
+<div id="outline-container-8" class="outline-2">
+<h2 id="sec-8"><span class="section-number-2">8</span> methods andler() and andler() are straightforward.</h2>
+<div class="outline-text-2" id="text-8">
+
+
+
+</div>
+</div>
+</div>
+
+<div id="postamble">
+<p class="date">Date: 2012-08-23 23:37:40 BST</p>
+<p class="author">Author: Ben Eills</p>
+<p class="creator">Org version 7.8.09 with Emacs version 23</p>
+<a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a>
+
+</div>
+</body>
+</html>

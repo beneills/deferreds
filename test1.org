@@ -1,0 +1,120 @@
+Deferred Tutorial
+
+Imagine that a madman (we'll call him MadHatter) walks up to you and thrusts into your hand a FireCracker.  The FireCracker's internal Fuse is burning and will explode the firework in the next few seconds.
+
+We will model this scenario using Asyncronous Python code.  This sort  of task is exactly what Twisted excels at, and we will write a Twisted implmentation of the scenario at the end of the article.  Before that, however, we will examine what components the task makes necessary in a general async event manager.  To this end we shall create our own event manager called Fate (don't worry, this will be very bare bones to fit in a few lines of code, yet suitable for the task we have set it).  You may have noticed that the pieces of the system I have described so far have names fitting into a real-life analogy.  This is a device to aid memory and understanding; I will make clear as we consider each part whether it is specific to our scenario, or applicable to a more general class of circumstances.  Hopefully the choice of naming will be helpful - Twisted also has interesting names, but ones which strangely have very little to do with the function of their bearers (see Conch, Manhole and Jelly). 
+
+Enter the actors:
+
+#+BEGIN_SRC python
+class FireCracker(object):
+    def __init__(self, owner):
+        self.owner = owner
+    def hand_to(self, new_owner):
+        self.owner = new_owner
+    def explode(self):
+        print "BOOM! Firecracker exploded in the unlucky hands " \
+            "of {0}".format(self.owner)
+
+class MadHatter(object):
+    pass
+
+class BenEills(object):
+    pass
+#+END_SRC
+
+We've got this far using only the 'standard' everyday sort of Python.  No async magic.
+
+Now, why is an event manager useful?  Why not simply continue in this vein?
+
+Well, we want to be able to simulate th burning fuse.  Let's add a light_fuse() method to FireCracker.  In naïve, syncronous Python we could do something like this:
+
+#+BEGIN_SRC python
+
+def light_fuse(self):
+    burning_time = random.choice([0.5, 1.0, 1.5, 2.0])
+    time.sleep(burning_time)
+    self.explode()
+
+#+END_SRC
+
+Do *not* do this!  Why?  There are two obvious issues:
+* While burning the FireCracker()cannot be handed to anyone else.  The MadHatter()'s dark designs will never be realized because directly after lighting the fuse the processor becomes completely taken up with sleeping.  The path of execution effectively sits at the time.sleep() statement for several seconds, after which it moves to th next line, exploding in the lighter's own hands.  There is simply no way to do anything between the two consecutive lines of code.
+* Secondly, if you have more than one FireCracker(), or indeed anything else in your model, it will all unhelpfully freeze for several seconds.  Only one thing can possibly be happening at a particluar time.  This is the fundamental limitation of traditional syncronous programming.
+
+
+We shall now find a way around this by writing Fate() cna async code to use it.
+
+
+In general, asyncronous programming could be summarized by replacing any blocking operation (e.g. sleeping, waiting for data on sockets, waiting or external command to return) with special event-handling commands.  By writing Fate, we will see that the blocking, clunky operations are in fact moved back behind the scenes into the event framework, which itnelligently combines them to give the illusion of simultaenous happenings.  They are merely being 'switched between'.  (Incidentally, this is similar to the way that modern operating systems allow you to run multiple applications at once by raidly switching between them behind-the-scenes).
+
+On to Fate.  We have to provide a way for the developer working on the FireCracker code to 'set' events.  The simplest method of doing this is perhaps timer-based events.  Lets make a Fuse class that represents a timed event.  Just follow along, you'll see precisely how it fits together with everything else in a bit.
+
+#+BEGIN_SRC python
+class Fuse(object):
+    def set_time(self, time):
+        self.time = time
+    def is_burned(self):
+        return self.time < time.time()
+#+END_SRC
+
+
+So, this is simple.  We get a fuse, set the burning time and then we can check in the future whether or not it is fully burned.  It is a trifle whether to use '<' or '<=' - it is incredibly unlikely that this will make any difference in your Python implementation, due to the high precision of the Standard Library's time() call.  I have opted for the nicer-looking version, avoiding the perhaps philisophical issue of subdivision of time.
+
+Now, the way that this will be incorporated into our code is as follows:
+* We will create Fate and add to it a get_fuse() method.  This will take a single argument of the (floating point) number of seconds representing burning time.  It will add this to the current time, giving the absolute time at which the fuse will be fully burned, creates a Fuse instance and sets the time on it.  It saves this to internal instance memeory and returns it.
+* We will add a light_fuse() method to FireCracker.  This will get a Fuse using Fate.get_fuse() and tell it what to do when the fuse is fully burned.  It will do this by simply calling its set_handler() method with self.explode.  We are telling Fate how to handle the fuse being completely burned.
+
+
+
+But wait.  Fuse doesn't have a set_handler() method.  We're going to fix that presently, it was simply more convienient to present the material in this logical order.
+
+The following is the whole of Fate, including the slightly expanded Fuse class.  It will be explained afterwards.  Try to glean the rough functionality from the source.
+
+#+BEGIN_SRC python
+class Fate(object):
+    def __init__(self):
+        self._shutdown = False
+        self.fuses = []
+
+    def get_fuse(self, seconds):
+        f = Fuse()
+        f.set_time(time.time() + seconds)
+        self.fuses.append(f)
+        return f
+
+    def check_fuses(self):
+        for fuse in self.fuses:
+            if fuse.has_handler() and fuse.is_burned():
+                self.fuses.remove(fuse)
+                fuse.call_handler()
+
+    def run(self):
+        while not self._shutdown:
+            self.check_fuses()
+            time.sleep(0.2)
+
+    def shutdown(self):
+        self._shutdown = True
+
+
+class Fuse(object):
+    def set_time(self, time):
+        self.time = time
+    def is_burned(self):
+        return self.time < time.time()
+    def set_handler(self, handler):
+        self.handler = handler
+    def has_handler(self):
+        return hasattr(self, 'handler')
+    def call_handler(self):
+        self.handler()
+#+END_SRC
+
+Whew!  Now the explanation:
+* check_fuses() goes through every fuse in the instance memory (which should be every fuse if the other developers have behaved and used get_fuse() rather than instantiating Fuse for themselves).  For each fuse it checks is the fuse has_handler() and is_burned().  If so, it removes the fuse from memory and calls the handler.  If the fuse is still burning, or no handler has been set, it simply is left in the list to be tested again.
+* run() is the 3-line meat of Fate and our whole event management system.  Every 0.2 seconds it runs check_fuses() until it detects a system shutdown event.
+* The set_handler function accepts a function.  In case you're not familiar with passing around functions as arguments, you simply supply the function name; this is the equivalent in C-derived languages of a function pointer, and, internally to Python, is represented as such.  This function is what you want to be called when the fuse is fully burned.
+* methods andler() and andler() are straightforward.
+
+
