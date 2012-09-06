@@ -205,7 +205,6 @@ fate.run()
 # Universe has ended.  We have no cleanup to do.
 #+END_SRC
 
-A fully working copy is available here TODO.
 
 * Taking Fate to its limits
 
