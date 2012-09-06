@@ -417,7 +417,7 @@ As a closing remark, it is important to choose correctly when asynchronous code 
 
 * Resources
 
-+ [[examples.tar.gz][All Examples in a Compressed Archive]]
++ [[./examples.tar.gz][All Examples in a Compressed Archive]]
 + [[http://twistedmatrix.com/documents/current/core/howto/defer.html][Official Twisted Deferred Guide]]
 + [[http://twistedmatrix.com/documents/12.2.0/api/twisted.internet.defer.Deferred.html][Deferred Object API Reference]]
 + [[https://github.com/beneills/deferreds][GitHub Repository with Development Version of this Tutorial]]
