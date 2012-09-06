@@ -33,9 +33,9 @@ Packaging
 =========
 
 Intended as a reminder to me of how to publish this on main website:
-+ Generate HTML document using Emacs
-+ Generate tar.gz of examples
-+ TODO
+* Generate HTML document using Emacs
+* Generate tar.gz of examples
+* TODO
 
 
 License

@@ -1,4 +1,11 @@
-#+TITLE:     Deferred Tutorial
+# Ben Eills, 2012
+#
+# No permission is required to copy, distribute or modify this file, in
+#   fact, the author hopes that you might improve it.  Attribution and linking
+#   to the source and/or corresponding tutorial is politely requested.
+
+
+#+TITLE:     Intro to Python Asynchronous Programming and Twisted's Deferreds
 #+AUTHOR:    Ben Eills
 #+EMAIL:     ziarkaen@socrates.primroseend
 #+DATE:      2012-09-03 Mon
@@ -408,3 +415,10 @@ Errbacks are the counterpart to callbacks that are meant to be triggered in the 
 Chaining is a way to link Deferreds "end-to-end" in a chain, so that one will only fire after another does.  This allows us to do the "line-by-line" execution that is given to us for free in synchronous programming.  Also useful is the inlineCallbacks generator, which performs a similar function.
 
 As a closing remark, it is important to choose correctly when asynchronous code is necessary and when it is not.  For simple shell-replacement Python scripts it is clearly an overkill, but for applications performing multiple network requests or handling user input while doing background work Twisted is probably the answer.
+
+* Resources
+
++ [[examples.tar.gz][All Examples in a Compressed Archive]]
++ [[http://twistedmatrix.com/documents/current/core/howto/defer.html][Official Twisted Deferred Guide]]
++ [[http://twistedmatrix.com/documents/12.2.0/api/twisted.internet.defer.Deferred.html][Deferred Object API Reference]]
++ [[https://github.com/beneills/deferreds][GitHub Repository with Development Version of this Tutorial]]

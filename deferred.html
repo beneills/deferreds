@@ -3,9 +3,9 @@
                "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<title>Deferred Tutorial</title>
+<title>Intro to Python Asynchronous Programming and Twisted's Deferreds</title>
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
-<meta name="title" content="Deferred Tutorial"/>
+<meta name="title" content="Intro to Python Asynchronous Programming and Twisted's Deferreds"/>
 <meta name="generator" content="Org-mode"/>
 <meta name="generated" content="2012-09-03 Mon"/>
 <meta name="author" content="Ben Eills"/>
@@ -91,7 +91,9 @@
 </div>
 
 <div id="content">
-<h1 class="title">Deferred Tutorial</h1>
+<h1 class="title">Intro to Python Asynchronous Programming and Twisted's Deferreds</h1>
+
+
 
 
 <div id="table-of-contents">
@@ -102,6 +104,8 @@
 <li><a href="#sec-2">Fate</a></li>
 <li><a href="#sec-3">Taking Fate to its limits</a></li>
 <li><a href="#sec-4">Twisted</a></li>
+<li><a href="#sec-5">Beyond this tutorial</a></li>
+<li><a href="#sec-6">Resources</a></li>
 </ul>
 </div>
 </div>
@@ -115,7 +119,7 @@
 Imagine that a madman (we'll call him MadHatter) walks up to you and thrusts into your hand a FireCracker.  The FireCracker's internal Fuse is burning and will explode the firework in the next few seconds.
 </p>
 <p>
-We will model this scenario using Asyncronous Python code.  This sort  of task is exactly what Twisted excels at, and we will write a Twisted implmentation of the scenario at the end of the article.  Before that, however, we will examine what components the task makes necessary in a general async event manager.  To this end we shall create our own event manager called Fate (don't worry, this will be very bare bones to fit in a few lines of code, yet suitable for the task we have set it).  You may have noticed that the pieces of the system I have described so far have names fitting into a real-life analogy.  This is a device to aid memory and understanding; I will make clear as we consider each part whether it is specific to our scenario, or applicable to a more general class of circumstances.  Hopefully the choice of naming will be helpful - Twisted also has interesting names, but ones which strangely have very little to do with the function of their bearers (see Conch, Manhole and Jelly). 
+We will model this scenario using Asynchronous Python code.  This sort  of task is exactly what Twisted excels at, and we will write a Twisted implementation of the scenario at the end of the article.  Before that, however, we will examine what components the task makes necessary in a general async event manager.  To this end we shall create our own event manager called Fate (don't worry, this will be very bare bones to fit in a few lines of code, yet suitable for the task we have set it).  You may have noticed that the pieces of the system I have described so far have names fitting into a real-life analogy.  This is a device to aid memory and understanding; I will make clear as we consider each part whether it is specific to our scenario, or applicable to a more general class of circumstances.  Hopefully the choice of naming will be helpful - Twisted also has interesting names, but ones which strangely have very little to do with the function of their bearers (see Conch, Manhole and Jelly). 
 </p>
 <p>
 Enter the actors:
@@ -147,7 +151,7 @@ We've got this far using only the 'standard' everyday sort of Python.  No async 
 Now, why is an event manager useful?  Why not simply continue in this vein?
 </p>
 <p>
-Well, we want to be able to simulate th burning fuse.  Let's add a light_fuse() method to FireCracker.  In naïve, syncronous Python we could do something like this:
+Well, we want to be able to simulate the burning fuse.  Let's add a light_fuse() method to FireCracker.  In naïve, synchronous Python we could do something like this:
 </p>
 
 
@@ -164,20 +168,20 @@ def light_fuse(self):
 <p>
 Do <b>not</b> do this!  Why?  There are two obvious issues:
 </p><ul>
-<li>While burning the FireCracker()cannot be handed to anyone else.  The MadHatter()'s dark designs will never be realized because directly after lighting the fuse the processor becomes completely taken up with sleeping.  The path of execution effectively sits at the time.sleep() statement for several seconds, after which it moves to th next line, exploding in the lighter's own hands.  There is simply no way to do anything between the two consecutive lines of code.
+<li>While burning the FireCracker()cannot be handed to anyone else.  The MadHatter()'s dark designs will never be realized because directly after lighting the fuse the processor becomes completely taken up with sleeping.  The path of execution effectively sits at the time.sleep() statement for several seconds, after which it moves to the next line, exploding in the lighter's own hands.  There is simply no way to do anything between the two consecutive lines of code.
 </li>
-<li>Secondly, if you have more than one FireCracker(), or indeed anything else in your model, it will all unhelpfully freeze for several seconds.  Only one thing can possibly be happening at a particluar time.  This is the fundamental limitation of traditional syncronous programming.
+<li>Secondly, if you have more than one FireCracker(), or indeed anything else in your model, it will all unhelpfully freeze for several seconds.  Only one thing can possibly be happening at a particular time.  This is the fundamental limitation of traditional synchronous programming.
 </li>
 </ul>
 
 
 
 <p>
-We shall now find a way around this by writing Fate() cna async code to use it.
+We shall now find a way around this by writing Fate() async code to use it.
 </p>
 
 <p>
-In general, asyncronous programming could be summarized by replacing any blocking operation (e.g. sleeping, waiting for data on sockets, waiting or external command to return) with special event-handling commands.  By writing Fate, we will see that the blocking, clunky operations are in fact moved back behind the scenes into the event framework, which itnelligently combines them to give the illusion of simultaenous happenings.  They are merely being 'switched between'.  (Incidentally, this is similar to the way that modern operating systems allow you to run multiple applications at once by raidly switching between them behind-the-scenes).
+In general, asynchronous programming could be summarized by replacing any blocking operation (e.g. sleeping, waiting for data on sockets, waiting or external command to return) with special event-handling commands.  By writing Fate, we will see that the blocking, clunky operations are in fact moved back behind the scenes into the event framework, which intelligently combines them to give the illusion of simultaneous happenings.  They are merely being 'switched between'.  (Incidentally, this is similar to the way that modern operating systems allow you to run multiple applications at once by rapidly switching between them behind-the-scenes).
 </p>
 </div>
 
@@ -204,13 +208,13 @@ On to Fate.  We have to provide a way for the developer working on the FireCrack
 
 
 <p>
-So, this is simple.  We get a fuse, set the burning time and then we can check in the future whether or not it is fully burned.  It is a trifle whether to use '&lt;' or '&lt;=' - it is incredibly unlikely that this will make any difference in your Python implementation, due to the high precision of the Standard Library's time() call.  I have opted for the nicer-looking version, avoiding the perhaps philisophical issue of subdivision of time.
+So, this is simple.  We get a fuse, set the burning time and then we can check in the future whether or not it is fully burned.  It is a trifle whether to use '&lt;' or '&lt;=' - it is incredibly unlikely that this will make any difference in your Python implementation, due to the high precision of the Standard Library's time() call.  I have opted for the nicer-looking version, avoiding the perhaps philosophical issue of subdivision of time.
 </p>
 <p>
 Now, the way that this will be incorporated into our code is as follows:
 </p>
 <ul>
-<li>We will create Fate and add to it a get_fuse() method.  This will take a single argument of the (floating point) number of seconds representing burning time.  It will add this to the current time, giving the absolute time at which the fuse will be fully burned, creates a Fuse instance and sets the time on it.  It saves this to internal instance memeory and returns it.
+<li>We will create Fate and add to it a get_fuse() method.  This will take a single argument of the (floating point) number of seconds representing burning time.  It will add this to the current time, giving the absolute time at which the fuse will be fully burned, creates a Fuse instance and sets the time on it.  It saves this to internal instance memory and returns it.
 </li>
 <li>We will add a light_fuse() method to FireCracker.  This will get a Fuse using Fate.get_fuse() and tell it what to do when the fuse is fully burned.  It will do this by simply calling its set_handler() method with self.explode.  We are telling Fate how to handle the fuse being completely burned.
 </li>
@@ -220,7 +224,7 @@ Now, the way that this will be incorporated into our code is as follows:
 
 
 <p>
-But wait.  Fuse doesn't have a set_handler() method.  We're going to fix that presently, it was simply more convienient to present the material in this logical order.
+But wait.  Fuse doesn't have a set_handler() method.  We're going to fix that presently, it was simply more convenient to present the material in this logical order.
 </p>
 <p>
 The following is the whole of Fate, including the slightly expanded Fuse class.  It will be explained afterwards.  Try to glean the rough functionality from the source.
@@ -294,7 +298,7 @@ The pattern of writing a program using Fate is easy:
 </li>
 <li>You call Fate's run()
 </li>
-<li>The intitial handlers can themselves set up subsequent handlers
+<li>The initial handlers can themselves set up subsequent handlers
 </li>
 <li>All actual work is done in these handler functions
 </li>
@@ -306,7 +310,7 @@ The pattern of writing a program using Fate is easy:
 
 
 <p>
-Now, we'll fill in the bits of the FireCracker scenario to make use of Fate.  This will be a good example of how to use Fate for other applications, and, more generally, is illustrative of a standard asyncronous design pattern.  Remember that we're replacing the bad, syncronous version one of our light_fuse() method with a better Fate-ful one.
+Now, we'll fill in the bits of the FireCracker scenario to make use of Fate.  This will be a good example of how to use Fate for other applications, and, more generally, is illustrative of a standard asynchronous design pattern.  Remember that we're replacing the bad, synchronous version one of our light_fuse() method with a better Fate-ful one.
 </p>
 <p>
 Here is the complete FireCracker program, minus general-purpose Fate code and imports.
@@ -381,7 +385,7 @@ It will not do any of the following things:
 </li>
 <li>Allow multiple users to handle any one Fuse (the last to call set_handler() is always the sole "owner")
 </li>
-<li>Utilise more complicated mechanisms to check for Fuses being compeletly burned.
+<li>Utilise more complicated mechanisms to check for Fuses being completely burned.
 <ul>
 <li>e.g. using the low-level select() call to avoid processor-intensive polling every 0.2 seconds
 </li>
@@ -442,7 +446,7 @@ fate.run()
 Here we have represented a chain of fuses by putting in the "user" code a chaining mechanism: the handler for one Fuse() i.e. ignite() itself creates another fuse.
 </p>
 <p>
-Try following through the "logical flow" of execution throught the program.  It can be more difficult to follow this than standard, syncronous code, but we gain an advantage when working on any non-trivial proram that must accomplish mutliple tasks in some sort of concurrency.
+Try following through the "logical flow" of execution through the program.  It can be more difficult to follow this than standard, synchronous code, but we gain an advantage when working on any non-trivial program that must accomplish multiple tasks in some sort of concurrency.
 </p>
 <p>
 Now that we've written an event handler and two examples together, its time to introduce Twisted.  It is similar to Fate, but much more extensible. Twisted also contains many utility modules for doing things like HTTP downloading and executing external commands.
@@ -457,7 +461,7 @@ Now that we've written an event handler and two examples together, its time to i
 
 
 <p>
-To get started with Twisted, remmber thses two approximations:
+To get started with Twisted, remember these two approximations:
 </p><ul>
 <li>"Twisted Reactor" is approximately "Fate", and
 </li>
@@ -467,14 +471,14 @@ To get started with Twisted, remmber thses two approximations:
 
 
 <p>
-Here is a simple Twisted proram, adapted from the <a href="http://twistedmatrix.com/documents/current/core/howto/defer.html#auto1">Twisted Docs</a>:
+Here is a simple Twisted program, adapted from the <a href="http://twistedmatrix.com/documents/current/core/howto/defer.html#auto1">Twisted Docs</a>:
 </p>
 
 
 
 <pre class="example">from twisted.internet import reactor, defer
 
-def slow_mutliply(x, y):
+def slow_multiply(x, y):
     """
     This function multiplies two numbers very slowly (for a computer).
     It takes 3 seconds.
@@ -484,7 +488,7 @@ def slow_mutliply(x, y):
     reactor.callLater(3, d.callback, x * y)
     return d
 
-def printData(fired_value):
+def print_multiplication_result(fired_value):
     """
     Is called by Twisted when the Deferred given by slow_multiply finally fires.  We pretty print the result it fires with.
     """
@@ -500,6 +504,171 @@ reactor.callLater(4, reactor.stop)
 reactor.run()
 </pre>
 
+
+
+<p>
+So, similarly to our Fuse, a Deferred is Twisted's indication that the returner will fire it at some point in the future.
+</p>
+<p>
+The slow-multiply function returns the Deferred instantly, but uses Twisted's callLater function to call the "callback" method
+of its Deferred in 3 seconds.  This simulates a slow multiplier.
+</p>
+<p>
+Instead of adding a "handler", we add a "callback" function to the Deferred.  In this case it's printData() which as to deal with whatever
+value the Deferred fires with.
+</p>
+<p>
+With these small difference in mind, it ought to be easy for you to rewrite the Mad Hatter example using Twisted.  Here is is:
+</p>
+
+
+
+<pre class="example"># Standard Twisted imports.  You'll need these for most Twisted applications.
+from twisted.internet import reactor, defer
+
+import random
+
+class FireCracker(object):
+    def __init__(self, owner):
+        self.owner = owner
+    def hand_to(self, new_owner):
+        self.owner = new_owner
+    def explode(self, rv):
+        print "BOOM! Firecracker exploded in the unlucky hands " \
+            "of {0}".format(self.owner)
+    def light_fuse(self):
+        burning_time = random.choice([0.5, 1.0, 1.5, 2.0])
+        d = defer.Deferred()
+        d.addCallback(self.explode)
+        reactor.callLater(burning_time, d.callback, True)
+
+
+class MadHatter(object):
+    def __repr__(self):
+        return "Mad Hatter"
+
+
+class BenEills(object):
+    def __repr__(self):
+        return "Ben Eills"
+
+
+# Hatter and Ben are born
+hatter = MadHatter()
+ben = BenEills()
+
+# FireCracker appears, initially owned by the Hatter
+fc = FireCracker(hatter)
+
+# The Hatter lights the fuse immediately
+reactor.callLater(0, fc.light_fuse)
+
+# Waits one second and passes it to Ben
+reactor.callLater(1, fc.hand_to, ben)
+
+# And shutdown Twisted after 3 seconds, long enough for the FireCracker to certainly explode
+reactor.callLater(3, reactor.stop)
+
+# Start Twisted
+reactor.run()
+</pre>
+
+
+<p>
+We've made this one more interesting: it may explode in the MadHatter's own hands.
+</p>
+<p>
+The single-letter "d" is commonly used to point to a Deferred object within Twisted programs.  This convention can make it easier to keep clear which returned values are actual data (i.e. non-Deferred objects) and which are simply "promises of data" (i.e. Deferreds).
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-5" class="outline-2">
+<h2 id="sec-5">Beyond this tutorial</h2>
+<div class="outline-text-2" id="text-5">
+
+<p>The above should be enough to get you started working within the Twisted asynchronous framework, and you should have a reasonably clear idea of how events fit together.  With such programming, you have the advantage of not having to worry about simultaneous variable access and other issues associated with threaded programming, but you have the additional responsibility of making your functions return fast (no "block" for long periods of time).  Looking at Fate its clear why this would be a problem: your code would stop the event handler looking for other events that need to happen.
+</p>
+<p>
+It is for this reason that the other parts of the Twisted framework become desirable.  In synchronous programming, one might use
+</p>
+
+
+
+<pre class="example">urllib2.urlopen("http://www.beneills.com/").read(1000)
+</pre>
+
+
+<p>
+to read a web page.  This would be bad in Twisted, because while the standard library is occupied with downloading it (which might take several seconds), anything else that ought to run couldn't.
+</p>
+<p>
+The correct Twisted way to do this is:
+</p>
+
+
+
+<pre class="example">from twisted.internet import reactor
+import twisted.web.client as twc
+
+Example of using Twisted's getPage utility function in place of urllib2# This Twisted library function returns a Deferred
+d = twc.getPage("http://www.beneills.com/")
+
+# The deferred will fire when/if the page is successfully downloaded with the contents of the web page as a string
+
+# As in the above examples, we tell Twisted what to do when it does fire
+
+def printPage(data):
+    print "Page contents:"
+    print data
+
+d.addCallback(printPage)
+
+# Shutdown, regardless of success after 3 seconds
+reactor.callLater(3, reactor.stop)
+
+reactor.run()
+</pre>
+
+
+
+<p>
+Internally, Twisted's getPage function downloads small chunks of the page at a time, allowing other events to be handled during downloading.
+</p>
+
+<p>
+Two important topics not covered here for reasons of brevity are errbacks and deferred chaining.
+</p>
+<p>
+Errbacks are the counterpart to callbacks that are meant to be triggered in the event of something going wrong in a function.  They are similar to exceptions, and can be handled with the addErrback method of a Deferred.
+</p>
+<p>
+Chaining is a way to link Deferreds "end-to-end" in a chain, so that one will only fire after another does.  This allows us to do the "line-by-line" execution that is given to us for free in synchronous programming.  Also useful is the inlineCallbacks generator, which performs a similar function.
+</p>
+<p>
+As a closing remark, it is important to choose correctly when asynchronous code is necessary and when it is not.  For simple shell-replacement Python scripts it is clearly an overkill, but for applications performing multiple network requests or handling user input while doing background work Twisted is probably the answer.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-6" class="outline-2">
+<h2 id="sec-6">Resources</h2>
+<div class="outline-text-2" id="text-6">
+
+
+<ul>
+<li><a href="#examples.tar.gz">All Examples in a Compressed Archive</a>
+
+</li>
+<li><a href="http://twistedmatrix.com/documents/current/core/howto/defer.html">Official Twisted Deferred Guide</a>
+</li>
+<li><a href="http://twistedmatrix.com/documents/12.2.0/api/twisted.internet.defer.Deferred.html">Deferred Object API Reference</a>
+</li>
+<li><a href="https://github.com/beneills/deferreds">GitHub Repository with Development Version of this Tutorial</a>
+</li>
+</ul>
 
 </div>
 </div>
