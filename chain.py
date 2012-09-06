@@ -8,7 +8,7 @@
 #
 
 """
-Fate library code only.  Import into your code!
+Example of chaining Fate fuses together.
 See tutorial at TODO
 """
 
@@ -53,3 +53,43 @@ class Fuse(object):
         return hasattr(self, 'handler')
     def call_handler(self):
         self.handler()
+
+
+## This function explodes Parliament and shuts down universe.
+def explode_parliament():
+    print "Boom! The Houses of Parliament explode!"
+    fate.shutdown()
+
+## This class represents a fuse in part of a chain.
+import sys
+class FuseInChain(object):
+    def __init__(self, tie_to, burn_time):
+        """
+        Initialize a new fuse in our chain, tying it to the current end fuse, tie_to
+        If tie_to is None, we are tied directly to the barrel.
+        We become the new end fuse.
+        """
+        self.next = tie_to
+        self.burn_time = burn_time
+
+    def ignite(self):
+        """
+        Ignite this fuse.
+        """
+        print "...igniting next fuse in chain..."
+        f = fate.get_fuse(self.burn_time)
+        if self.next is None:
+            # We are the last Fuse in the chain.  Blow up barrel.
+            f.set_handler(explode_parliament)
+        else:
+            f.set_handler(self.next.ignite)
+
+
+fate = Fate()
+tmp = FuseInChain(None, 0.3)
+for i in xrange(7):
+    tmp = FuseInChain(tmp, i/10.0)
+last = tmp
+
+last.ignite()
+fate.run()
