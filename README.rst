@@ -8,7 +8,7 @@ Reading
 =======
 
 The main copy of this tutorial is hosted at
-http://www.beneills.com/tutorials/deferred.html , and the asociated files are
+http://www.beneills.com/tutorials/deferreds/ , and the asociated files are
 linked to from there.  This is the suggested version to read if you want to
 learn about Python async programming, Twisted and Deferreds.
 
